@@ -117,6 +117,7 @@ export default function TreeCanvas({
       const message = error instanceof Error ? error.message : 'Unknown error';
       onError?.(message);
       console.error('TreeCanvas error:', error);
+      return undefined;
     }
   }, [integer, viewMode, width, height, onError]);
 
