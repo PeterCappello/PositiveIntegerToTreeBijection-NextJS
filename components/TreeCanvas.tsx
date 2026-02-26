@@ -1,6 +1,20 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+
+function nthPrime(n: number): number {
+  let count = 0;
+  let candidate = 1;
+  while (count < n) {
+    candidate++;
+    let isPrime = true;
+    for (let i = 2; i * i <= candidate; i++) {
+      if (candidate % i === 0) { isPrime = false; break; }
+    }
+    if (isPrime) count++;
+  }
+  return candidate;
+}
 import { Tree, TreeRenderer, type NodePosition, type Edge } from '@/core';
 
 type ViewMode = 'conventional' | 'circular' | 'planetary';
@@ -69,14 +83,16 @@ export default function TreeCanvas({
         context.fillStyle = '#ffffff';
         context.fillRect(0, 0, width, height);
 
-        // Draw edges
-        context.strokeStyle = '#9ca3af';
-        context.lineWidth = 2;
-        for (const edge of edges) {
-          context.beginPath();
-          context.moveTo(edge.x1, edge.y1);
-          context.lineTo(edge.x2, edge.y2);
-          context.stroke();
+        // Draw edges (not shown in planetary view)
+        if (viewMode !== 'planetary') {
+          context.strokeStyle = '#9ca3af';
+          context.lineWidth = 2;
+          for (const edge of edges) {
+            context.beginPath();
+            context.moveTo(edge.x1, edge.y1);
+            context.lineTo(edge.x2, edge.y2);
+            context.stroke();
+          }
         }
 
         // Draw nodes
@@ -92,12 +108,18 @@ export default function TreeCanvas({
           context.lineWidth = 2;
           context.stroke();
 
-          // Draw node number
-          context.fillStyle = '#ffffff';
-          context.font = 'bold 12px Arial';
-          context.textAlign = 'center';
+          // Draw node number to the right of the node
+          context.fillStyle = '#1e40af';
+          context.font = 'bold 24px Arial';
+          context.textAlign = 'left';
           context.textBaseline = 'middle';
-          context.fillText(node.value.toString(), node.x, node.y);
+          context.fillText(node.value.toString(), node.x + node.radius + 4, node.y);
+
+          // Draw prime label to the left of non-root nodes
+          if (node.level > 0) {
+            context.textAlign = 'right';
+            context.fillText(nthPrime(node.value).toString(), node.x - node.radius - 4, node.y);
+          }
         }
 
         if (viewMode === 'planetary') {

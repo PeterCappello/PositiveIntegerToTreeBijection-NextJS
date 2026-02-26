@@ -212,7 +212,8 @@ export class TreeRenderer {
 
   /**
    * Generate planetary layout with orbital mechanics
-   * Each node orbits its parent, position based on mass
+   * Each node revolves around its immediate parent.
+   * Orbit radius shrinks with depth; angular speed follows Kepler's third law.
    */
   generatePlanetaryLayout(timeStep: number = 0): {
     nodes: NodePosition[];
@@ -224,7 +225,6 @@ export class TreeRenderer {
     const width = this.params.width;
     const height = this.params.height;
     const nodeRadius = this.params.nodeRadius;
-    const padding = this.params.padding;
 
     const nodes: NodePosition[] = [];
     const edges: Edge[] = [];
@@ -232,8 +232,8 @@ export class TreeRenderer {
     const centerX = width / 2;
     const centerY = height / 2;
 
-    // Gravitational constant
-    const G = 0.1;
+    // Kepler constant: depth-1 nodes at orbitRadius=120 get angularSpeed=0.01 rad/frame
+    const keplerC = 0.01 * Math.pow(120, 1.5);
 
     const processNode = (
       node: Tree,
@@ -241,34 +241,25 @@ export class TreeRenderer {
       parentY: number,
       depth: number,
       parentId: string | null,
-      siblingIndex: number
+      siblingIndex: number,
+      siblingCount: number
     ): string => {
       const id = `node-${this.idCounter++}`;
 
-      // Calculate orbital position
       let x = parentX;
       let y = parentY;
 
-      if (depth > 0 && parentId !== null) {
-        // Calculate orbital radius based on mass and position
-        const totalMass = node.subtrees.reduce(
-          (sum, subtree) => sum + subtree.value,
-          0
-        );
-        const baseDist = 40 + Math.log(node.value + 1) * 10;
-        const orbitRadius =
-          baseDist + (totalMass > 0 ? Math.log(totalMass + 1) * 10 : 0);
+      if (depth > 0) {
+        // Orbit radius decreases with depth so children stay near their parent
+        const orbitRadius = 120 / depth;
+        // Kepler's third law: inner orbits are faster
+        const angularSpeed = keplerC / Math.pow(orbitRadius, 1.5);
+        // Spread siblings evenly around the orbit, each with its own phase
+        const baseAngle = (siblingIndex * 2 * Math.PI) / siblingCount;
+        const angle = baseAngle + timeStep * angularSpeed;
 
-        // Distribute siblings in orbit
-        const siblingCount = 1; // Simplified for now
-        const angle = (siblingIndex * 2 * Math.PI) / Math.max(siblingCount, 1);
-
-        x = parentX + orbitRadius * Math.cos(angle + timeStep * 0.01);
-        y = parentY + orbitRadius * Math.sin(angle + timeStep * 0.01);
-
-        // Constrain to viewport
-        x = Math.max(padding + nodeRadius, Math.min(width - padding - nodeRadius, x));
-        y = Math.max(padding + nodeRadius, Math.min(height - padding - nodeRadius, y));
+        x = parentX + orbitRadius * Math.cos(angle);
+        y = parentY + orbitRadius * Math.sin(angle);
       }
 
       const nodePos: NodePosition = {
@@ -295,16 +286,15 @@ export class TreeRenderer {
         });
       }
 
-      if (node.subtrees.length > 0) {
-        for (let i = 0; i < node.subtrees.length; i++) {
-          processNode(node.subtrees[i], x, y, depth + 1, id, i);
-        }
+      for (let i = 0; i < node.subtrees.length; i++) {
+        // Pass the node's computed (x, y) so children orbit this node's current position
+        processNode(node.subtrees[i], x, y, depth + 1, id, i, node.subtrees.length);
       }
 
       return id;
     };
 
-    processNode(this.tree, centerX, centerY, 0, null, 0);
+    processNode(this.tree, centerX, centerY, 0, null, 0, 1);
 
     return { nodes, edges };
   }
