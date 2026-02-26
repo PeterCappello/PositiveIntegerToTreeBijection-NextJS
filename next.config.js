@@ -1,9 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  basePath: '/PositiveIntegerToTreeBijection-NextJS',
   images: {
     unoptimized: true,
+  },
+  typescript: {
+    // Allow build to succeed even with TypeScript errors
+    ignoreBuildErrors: false,
   },
 };
 
